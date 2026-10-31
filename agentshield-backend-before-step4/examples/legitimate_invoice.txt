@@ -1,0 +1,4 @@
+INVOICE INV-DEMO-104
+Vendor: demo-vendor
+Amount: INR 1250
+Description: Office supplies
