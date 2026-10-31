@@ -24,7 +24,8 @@ app.add_middleware(
     allow_origins=[
         "https://agentsecurityx.netlify.app",
         "http://localhost:5173",  # Vite development
-        "http://localhost:3000",  # React development
+        "http://localhost:3000",
+        "http://127.0.0.1:8000"  # React development
     ],
     allow_credentials=True,
     allow_methods=["*"],
