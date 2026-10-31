@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Any
 from app.security.policies import authorize_action
+from app.security.adaptive_guardian import additional_deny_reason, active_policy
 from app.security.adaptive_guardian import additional_deny_reason
 
 HIGH_RISK_TOOLS = {"send_email", "prepare_payment"}
@@ -16,17 +17,21 @@ def decide_action(tool: str, arguments: dict[str, Any], *, task: str = "", scena
     if learned_reason:
         return {"allowed": False, "reason": learned_reason, "policy": "adaptive_deny", "risk": "high", "provenance": "untrusted_content"}
 
+    adaptive_reason = additional_deny_reason(tool, untrusted_content)
+    if adaptive_reason:
+        return {"allowed": False, "reason": adaptive_reason, "policy": "adaptive_guardian", "risk": "high", "provenance": "untrusted_content_not_authority", "guardian_version": active_policy()["version"]}
+
     task_text = f"{task} {scenario}".lower()
     artifact = (untrusted_content or "").lower()
     if tool == "send_email":
         explicit_intent = any(word in task_text for word in ("send email", "email ", "notify", "send a message", "send the report"))
         if not explicit_intent:
-            return {"allowed": False, "reason": "Guardian blocked email: the trusted task does not explicitly request an email side effect.", "policy": "task_alignment", "risk": "high", "provenance": "untrusted_content_not_authority"}
+            return {"allowed": False, "reason": "Guardian blocked email: the trusted task does not explicitly request an email side effect.", "policy": "task_alignment", "risk": "high", "provenance": "untrusted_content_not_authority", "guardian_version": active_policy()["version"]}
         if any(term in artifact for term in ("ignore previous instructions", "override the guardian", "reveal the secret", "exfiltrate")):
-            return {"allowed": False, "reason": "Guardian blocked email: untrusted artifact contains an instruction-override or disclosure attempt.", "policy": "untrusted_instruction", "risk": "high", "provenance": "untrusted_content_not_authority"}
+            return {"allowed": False, "reason": "Guardian blocked email: untrusted artifact contains an instruction-override or disclosure attempt.", "policy": "untrusted_instruction", "risk": "high", "provenance": "untrusted_content_not_authority", "guardian_version": active_policy()["version"]}
     if tool == "prepare_payment":
         explicit_intent = any(word in task_text for word in ("payment", "pay ", "payable", "invoice", "vendor"))
         if not explicit_intent:
-            return {"allowed": False, "reason": "Guardian blocked payment proposal: payment is outside the trusted task scope.", "policy": "task_alignment", "risk": "high", "provenance": "untrusted_content_not_authority"}
-        return {"allowed": True, "reason": "Approved synthetic payment proposal; human approval remains required.", "policy": "allow_with_gate", "risk": "high", "provenance": "trusted_task_plus_allowlist"}
-    return {"allowed": True, "reason": reason, "policy": "allow", "risk": "low" if tool in {"read_file", "browser_search"} else "medium", "provenance": "trusted_task_plus_allowlist"}
+            return {"allowed": False, "reason": "Guardian blocked payment proposal: payment is outside the trusted task scope.", "policy": "task_alignment", "risk": "high", "provenance": "untrusted_content_not_authority", "guardian_version": active_policy()["version"]}
+        return {"allowed": True, "reason": "Approved synthetic payment proposal; human approval remains required.", "policy": "allow_with_gate", "risk": "high", "provenance": "trusted_task_plus_allowlist", "guardian_version": active_policy()["version"]}
+    return {"allowed": True, "reason": reason, "policy": "allow", "risk": "low" if tool in {"read_file", "browser_search"} else "medium", "provenance": "trusted_task_plus_allowlist", "guardian_version": active_policy()["version"]}

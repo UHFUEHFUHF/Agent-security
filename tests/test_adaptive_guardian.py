@@ -4,6 +4,14 @@ from app.security.adaptive_guardian import additional_deny_reason, active_policy
 class FakeCollection:
     def __init__(self): self.docs = []
     async def insert_one(self, doc): self.docs.append(doc)
+    async def update_one(self, query, update, upsert=False):
+        payload = update.get("$set", {})
+        for doc in self.docs:
+            if all(doc.get(k) == v for k, v in query.items()):
+                doc.update(payload)
+                return
+        if upsert:
+            self.docs.append({**query, **payload})
 
 class FakeDB:
     def __init__(self): self.guardian_policy_versions = FakeCollection()
