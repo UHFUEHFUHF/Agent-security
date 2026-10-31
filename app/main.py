@@ -4,6 +4,9 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.db.mongo import connect_to_mongo, close_mongo, get_db
 from app.api import auth, runs, evaluations, arena, autonomy, benchmarks
+from fastapi.middleware.cors import CORSMiddleware
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,6 +17,20 @@ async def lifespan(app: FastAPI):
         await close_mongo()
 
 app = FastAPI(title=settings.app_name, version="2.0.0", lifespan=lifespan)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://agentsecurityx.netlify.app",
+        "http://localhost:5173",  # Vite development
+        "http://localhost:3000",  # React development
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/health", tags=["health"])
 async def health():
